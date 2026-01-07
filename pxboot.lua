@@ -324,10 +324,27 @@ config = setmetatable({
     end,
     args = function(...)
         local varargs = {...}
+        local result = {cmd = "args", args = {}, line = debug.getinfo(2, "l").currentline}
+        
         if #varargs == 0 then
-            return {cmd = "args", args = {}, line = debug.getinfo(2, "l").currentline}
+            return setmetatable(result, {__call = function(self, arg)
+                expect(2, arg, "string")
+                local t = self.args
+                local q
+                t[#t+1] = ""
+                for c in arg:gmatch "." do
+                    if q then
+                        if c == q then q = nil
+                        else t[#t] = t[#t] .. c end
+                    elseif c == '"' or c == "'" then q = c
+                    elseif c == ' ' then t[#t+1] = ""
+                    else t[#t] = t[#t] .. c end
+                end
+                return self
+            end})
         elseif #varargs == 1 and type(varargs[1]) == "table" then
-            return {cmd = "args", args = varargs[1], line = debug.getinfo(2, "l").currentline}
+            result.args = varargs[1]
+            return result
         elseif #varargs == 1 and type(varargs[1]) == "string" then
             local str = varargs[1]
             local t = {""}
@@ -340,9 +357,26 @@ config = setmetatable({
                 elseif c == ' ' then t[#t+1] = ""
                 else t[#t] = t[#t] .. c end
             end
-            return {cmd = "args", args = t, line = debug.getinfo(2, "l").currentline}
+            result.args = t
+            
+            return setmetatable(result, {__call = function(self, arg)
+                expect(2, arg, "string")
+                local t = self.args
+                local q
+                t[#t+1] = ""
+                for c in arg:gmatch "." do
+                    if q then
+                        if c == q then q = nil
+                        else t[#t] = t[#t] .. c end
+                    elseif c == '"' or c == "'" then q = c
+                    elseif c == ' ' then t[#t+1] = ""
+                    else t[#t] = t[#t] .. c end
+                end
+                return self
+            end})
         else
-            return {cmd = "args", args = varargs, line = debug.getinfo(2, "l").currentline}
+            result.args = varargs
+            return result
         end
     end,
     craftos = {cmd = "craftos"},
